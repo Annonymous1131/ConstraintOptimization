@@ -135,12 +135,15 @@ class TrainModel:
         torch.save(self.model.fc_hidden.bias.data.clone(), f"{checkpoint_dir}/Run{self.run_id}_fc_hidden_bias{save_suffix}.pt")
         torch.save(self.model.classifier.weight.data.clone(), f"{checkpoint_dir}/Run{self.run_id}_classifier_weight{save_suffix}.pt")
         torch.save(self.model.classifier.bias.data.clone(), f"{checkpoint_dir}/Run{self.run_id}_classifier_bias{save_suffix}.pt")
+        if type(loss) == torch.Tensor:
+            loss = loss.item()
+        
         torch.save({
             'epoch': self.num_epochs,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'scheduler_state_dict': self.scheduler.state_dict(),
-            'loss': loss.item()
+            'loss': loss
         }, f"{checkpoint_dir}/Run{self.run_id}_full_checkpoint{save_suffix}.pth")
 
 

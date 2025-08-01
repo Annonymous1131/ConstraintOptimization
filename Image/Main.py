@@ -165,7 +165,7 @@ if __name__ == "__main__":
     dataset_name = sys.argv[1]
     method = sys.argv[2] if len(sys.argv) > 2 else "STC"
     misc_type = sys.argv[3] if len(sys.argv) > 3 else "A"
-    misclassification_count = sys.argv[4] if len(sys.argv) > 4 else "1"  
+    misclassification_count = int(sys.argv[4]) if len(sys.argv) > 4 else 1  
     
     if method == "CmC":
         n_samples_gurobi = 1000
@@ -232,7 +232,7 @@ if __name__ == "__main__":
         TM_after_g.model.classifier.bias.copy_(new_b)
     train_loss, train_acc = TM_after_g.evaluate("Train")
     val_loss, val_acc = TM_after_g.evaluate("Val")
-
+    TM_after_g.save_model(train_loss, save_suffix="_G")
     with open(TM_after_g.log_file, "a") as f:
         f.write(f"1,Gurobi_Complete_Eval_Train,-1,{train_loss},{train_acc}\n")
         f.write(f"1,Gurobi_Complete_Eval_Val,-1,{val_loss},{val_acc}\n")
@@ -240,5 +240,8 @@ if __name__ == "__main__":
         TM_after_g.run()
     except Exception as e:
         print(f"Error during training: {e}")
+
+    print(f"Training completed for dataset {dataset_name} using method {method}.")
+    print(f"Model saved at: /checkpoints/{dataset_name}/Run1_full_checkpoint_G.pth")
         
 
