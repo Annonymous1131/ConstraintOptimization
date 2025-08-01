@@ -7,6 +7,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 import numpy as np
 import os
 import pandas as pd
+import sys
 
 from Networks import TabularMLP, TabularMLP_Mult
 from RunGurobi import FlipBinary_A, FlipBinary_C, FlipMulticlass_A, FlipMulticlass_C, BorderBinary, BorderMulticlass
@@ -217,7 +218,7 @@ def ModifyWeights(Dataset, X_train, y_train, X_test, y_test, num_classes=2, n_sa
     if G_result is not None:
         W_new, b_new = G_result
     else:
-        return
+        return False
     W_new = torch.tensor(W_new, dtype=torch.float32)
     b_new = torch.tensor(b_new, dtype=torch.float32)
     
@@ -240,26 +241,41 @@ def ModifyWeights(Dataset, X_train, y_train, X_test, y_test, num_classes=2, n_sa
     torch.save(model.state_dict(), G_checkpoint_path)
 
     TrainNN(Dataset, X_train, y_train, X_test, y_test, num_classes=num_classes, patience=15, max_epochs=200000, preset_weights_path=G_checkpoint_path, run_id=run_id, Method=f"RA{Method}{flipCount}")
-
+    
+    return True
 
 if __name__ == "__main__":
     dataset_name = sys.argv[1]
     method = sys.argv[2] if len(sys.argv) > 2 else "STC"
     misc_type = sys.argv[3] if len(sys.argv) > 3 else "A"
-    misclassification_count = sys.argv[4] if len(sys.argv) > 4 else "1"
+    misclassification_count = int(sys.argv[4]) if len(sys.argv) > 4 else 1
 
     # Datasets = ["Adult", "higgs", "GiveMeSomeCredit", "bank-marketing", "santander"]
 
-    X_train, y_train, X_test, y_test, num_classes = LoadDataset(dataset_name, run_id=run)
+    X_train, y_train, X_test, y_test, num_classes = LoadDataset(dataset_name, run_id=1)
     
-    TrainNN(dataset, X_train, y_train, X_test, y_test, num_classes=num_classes, patience=15, max_epochs=200000, preset_weights_path=None, run_id=run, Method="Train")
+    TrainNN(dataset_name, X_train, y_train, X_test, y_test, num_classes=num_classes, patience=15, max_epochs=200000, preset_weights_path=None, run_id=1, Method="Train")
     
     if method == "CmC":
         if misc_type == "A":
-            ModifyWeights(dataset, X_train, y_train, X_test, y_test, num_classes=num_classes, n_samples=1000, flipCount=misclassification_count, tol=1e-5, run_id=run, Method="F_C")
+            Solution = ModifyWeights(dataset_name, X_train, y_train, X_test, y_test, num_classes=num_classes, n_samples=1000, flipCount=misclassification_count, tol=1e-5, run_id=1, Method="F_A")
         elif misc_type == "C":
-            ModifyWeights(dataset, X_train, y_train, X_test, y_test, num_classes=num_classes, n_samples=1000, flipCount=misclassification_count, tol=1e-5, run_id=run, Method="F_A")  
+            Solution = ModifyWeights(dataset_name, X_train, y_train, X_test, y_test, num_classes=num_classes, n_samples=1000, flipCount=misclassification_count, tol=1e-5, run_id=1, Method="F_C")
 
     elif method == "STC":
-        ModifyWeights(dataset, X_train, y_train, X_test, y_test, num_classes=num_classes, n_samples=-1, flipCount=0, tol=1e-5, run_id=run, Method="B")
+        Solution = ModifyWeights(dataset_name, X_train, y_train, X_test, y_test, num_classes=num_classes, n_samples=-1, flipCount=0, tol=1e-5, run_id=1, Method="B")
+
+    if Solution:
+        if method == "CmC":
+            method_suffix = f"F_{misc_type}"
+        else:
+            method_suffix = "B"
+
+        print(f"Successfully modified weights for dataset \"{dataset_name}\" using method \"{method}\".")
+        print(f"Path to model_G: checkpoints/{dataset_name}_1_tabular_model_{method_suffix}.pt")
+        if method == "CmC":
+            print(f"Path to model_RT (Retrain after misclassification): checkpoints/{dataset_name}_1_tabular_model_RA{method_suffix}{misclassification_count}.pt")
+
+    else:
+        print(f"Failed to modify weights for dataset \"{dataset_name}\" using method \"{method}\".")
 
